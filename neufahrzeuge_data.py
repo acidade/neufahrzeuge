@@ -2,22 +2,25 @@ import pandas as pd
 import time
 import datetime
 
-
-#####################################################################
-###################### Start of pulling data ########################
-#####################################################################
-
 # start timestamp for csv file to make sure to have a unique filename when saving
 time_start = time.time()
-timestamp_file = datetime.datetime.fromtimestamp(time_start).strftime('%Y%m%d%H%M%S')
+file_timestamp = datetime.datetime.fromtimestamp(time_start).strftime('%Y%m%d%H%M%S')
+
+# define filename for final file and csv separator
+file_name = 'neufahrzeuge_alle_jahre'
+file_raw = 'RAW'
+file_processed = 'PRO'
+file_final = 'FIN'
+file_format = '.csv'
+file_separator = ','
+
+##############################################
+################# pull data ##################
+##############################################
 
 # define base-url (auto.swiss) and files to pull
 base_url = 'https://www.auto.swiss/fileadmin/3_Statistiken/Autoverkaeufe_nach_Modellen/'
 filenames = ['ModellePW2012.xls', 'ModellePW2013.xls','ModellePW2014.xls','ModellePW2015.xlsx','ModellePW2016.xlsx','ModellePW2017.xlsx','ModellePW2018.xlsx']
-
-# define filename for final file and csv separator
-file_out_raw = 'neufahrzeuge_alle_jahre_RAW'
-csv_separator = ','
 
 # define dataframe to collect all data
 df_alle = pd.DataFrame()
@@ -55,26 +58,18 @@ print(df_alle)
 
 # save all data to 'file_out_raw'
 try:
-    savefile = str(timestamp_file)+'_'+file_out_raw+'.csv'
-    df_alle.to_csv(savefile, sep=csv_separator, index=False)
+    savefile = str(file_timestamp)+'_'+file_name+'_'+file_raw+file_format
+    df_alle.to_csv(savefile, sep=file_separator, index=False)
     print(f'File "{savefile}" was written to disk.')
 except:
     print('There was an error while writing the data to disk.')
 
-#####################################################################
-####################### Start of formatting #########################
-#####################################################################
 
-import pandas as pd
+##############################################
+################ format data #################
+##############################################
 
-#define output and csv separator
-file_out_formated = "neufahrzeuge_alle_jahre_PRO"
-csv_separator = ","
-
-# define input file
-file_in = savefile
-
-df = pd.read_csv(file_in, dtype=str)
+df = pd.read_csv(savefile, dtype=str)
 
 # add column 'model_id' to all rows (Marke+Modell)
 df['model_id'] = df.apply(lambda row: str(row.Marke) + str(row.Modell), axis=1)
@@ -85,9 +80,16 @@ brands = df['Marke'].unique()
 models = df['Modell'].unique()
 print(f'{len(brands)} Marken und {len(models)} Modelle in {len(years)} Jahren gefunden')
 
-# create dictionary for the years
+# create dictionary for the years-loop
 year_dict = dict()
-yearcount = 1
+yearcount = 0
+
+# create dictionary for the year-data
+df_year = {}
+df_year[0] = []
+
+# initiate final DataFrame
+final = pd.DataFrame()
 
 # loop through all years
 for year in years:
@@ -117,23 +119,37 @@ for year in years:
         df_renamed = df_dropped.rename(index=str, columns={'Anzahl': jahr+'-'+monat+'_SUM'})
         print(f'{year}-{month} done')
     
-        if monthcount == 1 and yearcount == 1:
+        if monthcount == 1:
             # if it's the first month and year, re-order the columns
-            final = df_renamed[['model_id','Marke','Modell', jahr+'-'+monat+'_SUM']]
+            df_year[yearcount] = df_renamed[['model_id','Marke','Modell', jahr+'-'+monat+'_SUM']]
         else:
             # else, just merge the month with the yearly df
-            final = pd.merge(final, df_renamed, how='outer', on=['model_id', 'Marke', 'Modell'])
+            df_year[yearcount] = pd.merge(df_year[yearcount], df_renamed, how='outer', on=['model_id', 'Marke', 'Modell'])
         monthcount += 1
+    # replace all the NaN with 0's, because 0 cars were sold
+    df_year[yearcount] = df_year[yearcount].fillna(0)
+    df_calc = df_year[yearcount].iloc[:,3:].astype(int)
+    df_calc = df_calc.diff(axis=1)
+    df_calc.iloc[:,0:1] = df_year[yearcount].iloc[:,3:4]
+    df_calc.rename(columns=lambda x: x[:-3]+'ABS', inplace=True)
+    df_year[yearcount] = pd.concat([df_year[yearcount], df_calc], axis=1)
     yearcount += 1
 
-# replace all the NaN with 0's, because 0 cars were sold
+final = df_year[0].iloc[:,:3]
+
+for k, v in df_year.items():
+    #print(v)
+    final = pd.merge(final, v, how='outer', on=['model_id', 'Marke', 'Modell'])
+
+# replace NaN by 0
 final = final.fillna(0)
+# replace negative values by 0
+num = final._get_numeric_data()
+num[num < 0] = 0
 
-print(final)
-
-# save all data to 'file_out_formated'
+# save all data to file
 try:
-    final.to_csv(str(timestamp_file)+'_'+file_out_formated+'.csv', sep=csv_separator, index=False)
-    print(f'File "{timestamp_file}_{file_out_formated}.csv" was written to disk.')
+    final.to_csv(str(file_timestamp)+'_'+file_out_formated+'.csv', sep=csv_separator, index=False)
+    print(f'File "{file_timestamp}_{file_out_formated}.csv" was written to disk.')
 except:
     print('There was an error while writing the data to disk.')
