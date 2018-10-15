@@ -128,17 +128,20 @@ for year in years:
         monthcount += 1
     # replace all the NaN with 0's, because 0 cars were sold
     df_year[yearcount] = df_year[yearcount].fillna(0)
+
     df_calc = df_year[yearcount].iloc[:,3:].astype(int)
     df_calc = df_calc.diff(axis=1)
     df_calc.iloc[:,0:1] = df_year[yearcount].iloc[:,3:4]
     df_calc.rename(columns=lambda x: x[:-3]+'ABS', inplace=True)
     df_year[yearcount] = pd.concat([df_year[yearcount], df_calc], axis=1)
+    
     yearcount += 1
 
+# Prefill final-DF with index columns
 final = df_year[0].iloc[:,:3]
 
+# Merge final with yearly dfs
 for k, v in df_year.items():
-    #print(v)
     final = pd.merge(final, v, how='outer', on=['model_id', 'Marke', 'Modell'])
 
 # replace NaN by 0
@@ -149,7 +152,8 @@ num[num < 0] = 0
 
 # save all data to file
 try:
-    final.to_csv(str(file_timestamp)+'_'+file_out_formated+'.csv', sep=csv_separator, index=False)
-    print(f'File "{file_timestamp}_{file_out_formated}.csv" was written to disk.')
+    savefile = str(file_timestamp)+'_'+file_name+'_'+file_processed+file_format
+    final.to_csv(savefile, sep=file_separator, index=False)
+    print(f'File "{savefile}" was written to disk.')
 except:
     print('There was an error while writing the data to disk.')
