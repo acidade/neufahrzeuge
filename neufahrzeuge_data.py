@@ -7,7 +7,7 @@ time_start = time.time()
 file_timestamp = datetime.datetime.fromtimestamp(time_start).strftime('%Y%m%d%H%M%S')
 
 # define filename for final file and csv separator
-file_name = 'neufahrzeuge_alle_jahre'
+file_name = 'new-vehicles-all-years'
 file_raw = 'RAW'
 file_processed = 'PRO'
 file_final = 'FIN'
@@ -54,7 +54,7 @@ for file in filenames:
     df_alle = df_alle.append(year_df, ignore_index=True)
     print(f'{year} done.')
 
-print(df_alle)
+#print(df_alle)
 
 # save all data to 'file_out_raw'
 try:
@@ -78,7 +78,7 @@ df['model_id'] = df.apply(lambda row: str(row.Marke) + str(row.Modell), axis=1)
 years = df['Jahr'].unique()
 brands = df['Marke'].unique()
 models = df['Modell'].unique()
-print(f'{len(brands)} Marken und {len(models)} Modelle in {len(years)} Jahren gefunden')
+print(f'{len(brands)} brands and {len(models)} models found from {len(years)} years in file "{savefile}".')
 
 # create dictionary for the years-loop
 year_dict = dict()
@@ -134,7 +134,7 @@ for year in years:
     df_calc.iloc[:,0:1] = df_year[yearcount].iloc[:,3:4]
     df_calc.rename(columns=lambda x: x[:-3]+'ABS', inplace=True)
     df_year[yearcount] = pd.concat([df_year[yearcount], df_calc], axis=1)
-    
+
     yearcount += 1
 
 # Prefill final-DF with index columns
