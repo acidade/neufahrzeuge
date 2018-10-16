@@ -11,7 +11,7 @@ file_name = 'new-vehicles-all-years'
 file_raw = 'RAW'
 file_processed = 'PRO'
 file_final = 'FIN'
-file_format = '.csv'
+file_format = '.xlsx'
 file_separator = ','
 
 ##############################################
@@ -150,10 +150,36 @@ final = final.fillna(0)
 num = final._get_numeric_data()
 num[num < 0] = 0
 
+# convert all values in dataframe to numeric values
+final[final.columns[3:]] = final[final.columns[3:]].astype(int)
+
+display(final)
+
+# Define complete name for savefile
+savefile = str(file_timestamp)+'_'+file_name+'_'+file_final+file_format
+writer = pd.ExcelWriter(savefile)
+
+# Put final in combined sheet
+final.to_excel(writer, 'all_data', index=False)
+
+# put year after year in sheets, SUM and ABS in separate sheets
+for year in years:
+    print(year)
+    year_SUM = year+'_SUM'
+    year_ABS = year+'_ABS'
+    yearly = final.filter(like=year, axis=1)
+    yearly_SUM = yearly.filter(like='SUM', axis=1)
+    yearly_SUM = pd.concat([final.iloc[:,:3], yearly_SUM], axis=1)
+    yearly_ABS = yearly.filter(like='ABS', axis=1)
+    yearly_ABS = pd.concat([final.iloc[:,:3], yearly_ABS], axis=1)
+    yearly_SUM.to_excel(writer, year_SUM, index=False)
+    yearly_ABS.to_excel(writer, year_ABS, index=False)
+    
+# put year after year in sheets, combined numbers per brand
+
 # save all data to file
 try:
-    savefile = str(file_timestamp)+'_'+file_name+'_'+file_processed+file_format
-    final.to_csv(savefile, sep=file_separator, index=False)
-    print(f'File "{savefile}" was written to disk.')
+    writer.save()
 except:
     print('There was an error while writing the data to disk.')
+
